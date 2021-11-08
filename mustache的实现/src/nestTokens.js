@@ -13,7 +13,7 @@ export default function nestTokes(tokens) {
                 break
             case '/':
                 sections.pop()
-                collector = sections.length > 0 ? sections[sections.length - 1][2] :nestTokens
+                collector = sections.length > 0 ? sections[sections.length - 1][2] : nestTokens
                 break
             default:
                 collector.push(token)
