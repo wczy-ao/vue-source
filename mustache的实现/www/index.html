@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <div id="container"></div>
+  <script src="xuni/bundle.js"></script>
+  <script>
+    var templateStr = `
+      <div>
+        <ol>
+          {{#students}}
+          <li>
+            学生{{name}}的爱好是
+            <ol>
+              {{#hobbies}}
+              <li class='myli'>{{.}}</li>
+              {{/hobbies}}
+            </ol>
+          </li>
+          {{/students}}
+        </ol>
+      </div>
+    `
+    var data = {
+      students: [
+        { name: '小明', hobbies: ['游泳', '健身'] },
+        { name: '小红', hobbies: ['足球', '篮球', '羽毛球'] },
+        { name: '小强', hobbies: ['吃饭', '睡觉'] },
+      ]
+    }
+    var domStr = SGG_TemplateEngine.render(templateStr, data)
+    var container = document.getElementById('container')
+    container.innerHTML = domStr
+  </script>
+</body>
+
+</html>
