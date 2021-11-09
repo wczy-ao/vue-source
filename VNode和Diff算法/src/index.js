@@ -1,27 +1,12 @@
-import {
-    init,
-    classModule,
-    propsModule,
-    styleModule,
-    eventListenersModule,
-    h,
-} from "snabbdom";
+import h from "./Mydiff/h";
+import patch from "./Mydiff/patch";
 
-const patch = init([
-    // Init patch function with chosen modules
-    classModule, // makes it easy to toggle classes
-    propsModule, // for setting properties on DOM elements
-    styleModule, // handles styling on elements with support for animations
-    eventListenersModule, // attaches event listeners
-]);
+let container = document.getElementById("container");
+// let btn = document.getElementById("btn");
 
-const container = document.getElementById("container");
-var myVnode = h('a', {
-    props: {
-        href: 'https://www.baidu.com/'
-    }
-}, '百度一下，你就知道')
+// const myVnode1 = h("h1", {}, "你好");
 
-console.log(myVnode);
+const myVnode1 = h("p", {}, "hahaha");
 
-patch(container, myVnode);
+// 上树
+patch(container, myVnode1);
