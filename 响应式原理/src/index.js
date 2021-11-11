@@ -8,12 +8,13 @@ let obj = {
             d: 4,
         },
     },
+    g: [1, 2, 3, 4]
 };
 
 observe(obj);
 var btn = document.querySelector("#btn")
 btn.addEventListener('click', () => {
-    console.log(obj.b.c.d);
+    console.log(obj.g.push([1, 2]));
 })
 // defineReactive(obj, "b")
 // console.log(obj.b.c.d);
