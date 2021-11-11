@@ -1,0 +1,17 @@
+{
+  "name": "diff",
+  "version": "1.0.0",
+  "description": "`snabbdom`(瑞典语，“速度”)是著名的虚拟DOM库，是diff算法的鼻祖；vue源码也是借鉴了这个库；",
+  "main": "index.js",
+  "scripts": {
+    "dev": "webpack-dev-server"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "snabbdom": "^3.1.0",
+    "webpack": "^5.62.1",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.2"
+  }
+}
