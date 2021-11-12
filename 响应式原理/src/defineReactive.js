@@ -1,5 +1,5 @@
 import observe from "./observe";
-
+import Dep from "./Dep";
 /**
  * 给对象data的属性key定义监听
  * @param {*} data 传入的数据
@@ -10,6 +10,7 @@ export default function defineReactive(data, key, value) {
     if (arguments.length === 2) {
         value = data[key];
     }
+    const dep = new Dep();
 
     // // 子元素要进行observe，形成递归
     let childOb = observe(value)
@@ -22,7 +23,6 @@ export default function defineReactive(data, key, value) {
         // getter
         get() {
             console.log(`getter试图访问${key}属性`);
-            console.log(value);
             return value;
         },
         // setter
@@ -33,6 +33,7 @@ export default function defineReactive(data, key, value) {
 
             // 当设置了新值，新值也要被observe
             childOb = observe(newValue)
+            dep.notify
         },
     });
 }

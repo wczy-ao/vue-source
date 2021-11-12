@@ -14,7 +14,11 @@ let obj = {
 observe(obj);
 var btn = document.querySelector("#btn")
 btn.addEventListener('click', () => {
-    console.log(obj.g.push([1, 2]));
+    obj.b.c.d = 8
+    console.log(obj.b.c.d);
 })
-// defineReactive(obj, "b")
-// console.log(obj.b.c.d);
+console.log(obj);
+defineReactive(obj, "b")
+console.log(obj.b.c.d);
+
+// -------------------------------------------------------------------------------
