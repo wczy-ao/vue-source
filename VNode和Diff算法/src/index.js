@@ -9,6 +9,9 @@ const myVnode1 = h("ul", {}, [
         key: 'A'
     }, "A"),
     h("li", {
+        key: 'H'
+        }, "H"),
+        h("li", {
         key: 'B'
     }, "B"),
     h("li", {
@@ -34,6 +37,9 @@ const myVnode2 = h("ul", {}, [
     h("li", {
         key: 'B'
     }, "B"),
+    h("li", {
+        key: 'E'
+    }, "E"),
 ]);
 
 btn.onclick = function () {
