@@ -235,7 +235,7 @@ export default function defineReactive(data, key, value) {
 }
 ```
 
-### 数组的响应式处理
+#### 数组的响应式处理
 
 数组的数据改变是通过API来实现的，说以没有办法通过getter和setter来实现，es6有一个方法可以拦截原型APi的方法，这个就可以实现数组响应式
 
@@ -254,6 +254,8 @@ export default function defineReactive(data, key, value) {
 这就相当于用一个**拦截器**覆盖`Array.prototype`，每当使用`Array`原型上的方法操作数组时，其实执行的是拦截器中提供的方法。在拦截器中使用原生`Array`的原型方法去操作数组。
 
 `array.js`
+
+先抽离7个方法进行了劫持，外面执行这七个方法时；执行的是def的第三个参数
 
 ```js
 import def from "./def";
@@ -325,4 +327,12 @@ methodsNeedChange.forEach((methodName) => {
     }
   }
 ```
+
+
+
+### 收集依赖
+
+我们都知道，Vue能够实现当一个数据变更时，视图就进行刷新，而且用到这个数据的其他地方也会同步变更；而且，这个数据必须是在有被依赖的情况下，视图和其他用到数据的地方才会变更。 所以，**Vue要能够知道一个数据是否被使用**，实现这种机制的技术叫做`依赖收集`
+
+![](E:\vue-source\响应式原理\images\依赖收集图.png)
 

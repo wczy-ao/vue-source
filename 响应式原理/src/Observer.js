@@ -18,7 +18,6 @@ export default class Observer {
 
         // 将一个正常的object转换为每个层级的属性都是响应式（可以被侦测）的object
         if (Array.isArray(value)) {
-            debugger
             Object.setPrototypeOf(value, arrayMethods);
         } else {
             this.walk(value);
