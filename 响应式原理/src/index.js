@@ -12,13 +12,16 @@ let obj = {
 };
 
 observe(obj);
-var btn = document.querySelector("#btn")
-btn.addEventListener('click', () => {
-    obj.b.c.d = 8
-    console.log(obj.b.c.d);
-})
-console.log(obj);
-defineReactive(obj, "b")
-console.log(obj.b.c.d);
+obj.g.unshift(45)
+console.log(obj.g);
+
+// var btn = document.querySelector("#btn")
+// btn.addEventListener('click', () => {
+//     obj.b.c.d = 8
+//     console.log(obj.b.c.d);
+// })
+// console.log(obj);
+// defineReactive(obj, "b")
+// console.log(obj.b.c.d);
 
 // -------------------------------------------------------------------------------

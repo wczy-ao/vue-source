@@ -107,6 +107,8 @@ console.log(obj.a.c); // undefined
 
 #### `Observer`类
 
+> 总结写在前面：这个或许比较难以理解，但是可以打印obj对象，可以看到每个属性都具有`__ob__`这个属性，说明它进行了深层次的遍历，并且每个都执行`defineProperty`，因为`defineProperty`是经过改写的，这样你访问任何一个属性都会进行数据拦截
+
 ![](E:\vue-source\响应式原理\images\Observer的作用.png)
 
 Observer 类会附加到每一个被侦测的object上
@@ -190,4 +192,137 @@ export default function observe(value) {
 }
 ```
 
-https://blog.csdn.net/weixin_44972008/article/details/115922118
+`defineReactive`
+
+```js
+import observe from "./observe";
+
+/**
+ * 给对象data的属性key定义监听
+ * @param {*} data 传入的数据
+ * @param {*} key 监听的属性
+ * @param {*} value 闭包环境提供的周转变量
+ */
+export default function defineReactive(data, key, value) {
+  console.log('defineReactive()', data,key,value)
+  if (arguments.length === 2) {
+    value = data[key];
+  }
+  
+  // 子元素要进行observe，形成递归
+  let childOb = observe(value)
+  
+  Object.defineProperty(data, key, {
+    // 可枚举 可以for-in
+    enumerable: true,
+    // 可被配置，比如可以被delete
+    configurable: true,
+    // getter
+    get() {
+      console.log(`getter试图访问${key}属性`);
+      return value;
+    },
+    // setter
+    set(newValue) {
+      console.log(`setter试图改变${key}属性`, newValue);
+      if (value === newValue) return;
+      value = newValue;
+      
+      // 当设置了新值，新值也要被observe
+      childOb = observe(newValue)
+    },
+  });
+}
+```
+
+### 数组的响应式处理
+
+数组的数据改变是通过API来实现的，说以没有办法通过getter和setter来实现，es6有一个方法可以拦截原型APi的方法，这个就可以实现数组响应式
+
+![](E:\vue-source\响应式原理\images\数组方法劫持.png)
+
+
+
+[Vue](https://so.csdn.net/so/search?from=pc_blog_highlight&q=Vue)是通过改写数组的七个方法（可以改变数组自身内容的方法）来实现对数组的响应式处理；这些方法分别是：`push`、`pop`、`shift`、`unshift`、`splice`、`sort`、`reverse`
+
+
+
+我们劫持的思路就是：以`Array.prototype为`原型，创建一个新对象`arrayMthods`；然后在新对象`arrayMthods`上定义（改写）这些方法；定义 数组 的原型指向 `arrayMthods`
+
+
+
+这就相当于用一个**拦截器**覆盖`Array.prototype`，每当使用`Array`原型上的方法操作数组时，其实执行的是拦截器中提供的方法。在拦截器中使用原生`Array`的原型方法去操作数组。
+
+`array.js`
+
+```js
+import def from "./def";
+
+const arrayPrototype = Array.prototype;
+
+// 以Array.prototype为原型创建arrayMethod
+export const arrayMethods = Object.create(arrayPrototype);
+
+// 要被改写的7个数组方法
+const methodsNeedChange = [
+  "push",
+  "pop",
+  "shift",
+  "unshift",
+  "splice",
+  "sort",
+  "reverse",
+];
+
+// 批量操作这些方法
+methodsNeedChange.forEach((methodName) => {
+  // 备份原来的方法
+  const original = arrayPrototype[methodName];
+
+  // 定义新的方法
+  def(
+    arrayMethods,
+    methodName,
+    function () {
+      console.log("array数据已经被劫持");
+
+      // 恢复原来的功能(数组方法)
+      const result = original.apply(this, arguments);
+      // 把类数组对象变成数组
+      const args = [...arguments];
+
+      // 把这个数组身上的__ob__取出来
+      // 在拦截器中获取Observer的实例
+      const ob = this.__ob__;
+
+      // 有三种方法 push、unshift、splice能插入新项，要劫持（侦测）这些数据（插入新项）
+      let inserted = [];
+      switch (methodName) {
+        case "push":
+        case "unshift":
+          inserted = args;
+          break;
+        case "splice":
+          inserted = args.slice(2);
+          break;
+      }
+
+      // 查看有没有新插入的项inserted，有的话就劫持
+      if (inserted) {
+        ob.observeArray(inserted);
+      }
+
+      return result;
+    },
+    false
+  );
+});
+
+ observeArray(arr) {
+    for (let i = 0, l = arr.length; i < l; i++) {
+      // 逐项进行observe
+      observe(arr[i]);
+    }
+  }
+```
+

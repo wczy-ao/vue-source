@@ -10,11 +10,10 @@ export default function defineReactive(data, key, value) {
     if (arguments.length === 2) {
         value = data[key];
     }
-    const dep = new Dep();
-
+    // const dep = new Dep();
     // // 子元素要进行observe，形成递归
     let childOb = observe(value)
-
+    console.log(childOb, key);
     Object.defineProperty(data, key, {
         // 可枚举 可以for-in
         enumerable: true,
@@ -33,7 +32,7 @@ export default function defineReactive(data, key, value) {
 
             // 当设置了新值，新值也要被observe
             childOb = observe(newValue)
-            dep.notify
+            // dep.notify
         },
     });
 }

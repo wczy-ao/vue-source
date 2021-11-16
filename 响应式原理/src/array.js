@@ -31,7 +31,6 @@ methodsNeedChange.forEach((methodName) => {
 
             // // 恢复原来的功能(数组方法)
             const result = original.apply(this, arguments);
-
             // // 把类数组对象变成数组
             const args = [...arguments];
 
