@@ -2,7 +2,6 @@ import vnode from "./vnode";
 import createElement from "./createElement";
 
 export default function (oldVnode, newVnode) {
-    debugger
     // 判断传入的第一个参数是 DOM节点 还是 虚拟节点
     if (oldVnode.sel == "" || oldVnode.sel === undefined) {
         // 说明oldVnode是DOM节点，此时要包装成虚拟节点
@@ -23,6 +22,7 @@ export default function (oldVnode, newVnode) {
         // 要操作DOM，所以都要转换成 DOM节点
         let newVnodeElm = createElement(newVnode);
         let oldVnodeElm = oldVnode.elm;
+        console.log(newVnodeElm, "newVnodeElm");
         // 插入 新节点 到 旧节点 之前
         if (newVnodeElm) {
             // 判断newVnodeElm是存在的 在旧节点之前插入新节点
