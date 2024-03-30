@@ -1,0 +1,444 @@
+# vue3
+
+## 三种框架设计
+
+| 分类      |                             定义                             |
+| --------- | :----------------------------------------------------------: |
+| 纯运行    | 需要先提供一个树形数据结构，render函数执行该数据，返回页面内容 |
+| 纯编译 | 通过compile将HTML内容转成页面内容，不提供render(运行)功能，在编译器编译是就处理该部分了 |
+| 运行+编译 | Vue3的架构设计，将html模版字符串通过compile编译成render函数，在运行时 将render挂载到对应的dom上（编译可以提前执行，提升性能） |
+
+
+
+## 三大模块
+
+1. 响应性：reactive
+
+   ```
+   proxy的数据响应式
+   ```
+
+2. 运行时：runtime
+
+   ```
+   执行render函数生成Vnode，且将Vnode转成真实Dom
+   ```
+
+3. 编译器：compiler
+
+   ```
+   通过编译将html部分转成render函数
+   ```
+
+   
+
+## 副作用
+
+对数据进行getter和setter 操作后产生一系列的结果
+
+
+
+
+
+## 响应式
+
+### Reactive
+
+```js
+  const { reactive, effect } = Vue
+
+  const obj = reactive({
+    name: '张三'
+  })
+
+  // 调用 effect 方法
+  effect(() => {
+    document.querySelector('#app').innerText = obj.name
+  })
+
+  setTimeout(() => {
+    obj.name = '李四'
+  }, 2000);
+```
+
+原理如下：
+
+1. 执行reactive() ，为这个对象生成代理对象（proxy对象），给对象各属性添加getter和setter，**此时不会进行依赖收集**
+
+2. 执行effect()，生成ReactiveEffect生成副作用实例对象，会把effect参数回调函数赋予实例对象的静态方法中，且执行一次run方法，注意这里的run方法是原型链上的方法，里面会把副作用实例对象赋予activeEffect
+
+   ```js
+   function effect(fn, options) {
+     // 生成 ReactiveEffect 实例
+     var _effect = new ReactiveEffect(fn);
+     // 存在 options，则合并配置对象
+     if (options) {
+         extend(_effect, options);
+     }
+     if (!options || !options.lazy) {
+         // 执行 run 函数
+         _effect.run();
+     }
+   }
+   
+   var ReactiveEffect = /** @class */ (function () {
+     function ReactiveEffect(fn, scheduler) {
+         if (scheduler === void 0) { scheduler = null; }
+         this.fn = fn;
+         this.scheduler = scheduler;
+     }
+     ReactiveEffect.prototype.run = function () {
+         // 为 activeEffect 赋值
+         activeEffect = this;
+         // 执行 fn 函数
+         return this.fn();
+     };
+     ReactiveEffect.prototype.stop = function () { };
+     return ReactiveEffect;
+   }());
+   ```
+
+3. 执行obj.name触发proxy代理对象的getter方法，这一步开始收集依赖，上一步activeEffect已经被赋值了，形成了一个树形依赖对象
+
+   - targetMap，属性是target，值是map对象，用来收集副作用的
+   - 上面那个map对象会根据出发proxy的属性生成一个键，值是set数组
+   - 执行trackEffects(dep)，dep就是上面那个set数组
+   - dep会把activeEffect添加进来
+
+   ```js
+   function track(target, key) {
+     // 如果当前不存在执行函数，则直接 return
+     if (!activeEffect)
+         return;
+     // 尝试从 targetMap 中，根据 target 获取 map
+     var depsMap = targetMap.get(target);
+     // 如果获取到的 map 不存在，则生成新的 map 对象，并把该对象赋值给对应的 value
+     if (!depsMap) {
+         targetMap.set(target, (depsMap = new Map()));
+     }
+     // 获取指定 key 的 dep
+     var dep = depsMap.get(key);
+     // 如果 dep 不存在，则生成一个新的 dep，并放入到 depsMap 中
+     if (!dep) {
+         depsMap.set(key, (dep = createDep()));
+     }
+     trackEffects(dep);
+   }
+   ```
+
+4. 定时器触发proxy对象setter方法
+
+   - 我这里省略了很多中间步骤，set数组会进行一个遍历，每一项都会被当作参数执行triggerEffect，最后执行effect.run()，这个effect就是上面的activeEffect，执行run就是执行回调方法，所以页面更新了视图
+
+   ```js
+   function triggerEffect(effect) {
+     if (effect.scheduler) {
+         effect.scheduler();
+     }
+     else {
+         effect.run();
+     }
+   }
+   ```
+
+
+
+
+
+### ref
+
+Ref可以接受复杂类型和简单类型的参数，下面直接贴代码讲解
+
+1. ref方法返回的就是new RefImpl的实例，**对象属性本身不具有value属性的！！！**，_value属性值根据参数是复杂数据类型还是简单数据类型分别操作
+2. **复杂数据类型的话直接给reactive方法，按上面一节处理**
+3. 简单数据类型直接返回该值给_value
+
+4. **对RefImpl 原型的value属性进行defineProperty操作，具体的响应式和reactive一样，注意：修改或者返回的都是_value属性值**
+
+```js
+const obj = ref({
+  name: '张三'
+})
+
+
+var RefImpl = /** @class */ (function () {
+  function RefImpl(value, __v_isShallow) {
+      this.__v_isShallow = __v_isShallow;
+      this.dep = undefined;
+      // 是否为 ref 类型数据的标记
+      this.__v_isRef = true;
+      // 如果 __v_isShallow 为 true，则 value 不会被转化为 reactive 数据，即如果当前 value 为复杂数据类型，则会失去响应性。对应官方文档 shallowRef ：https://cn.vuejs.org/api/reactivity-advanced.html#shallowref
+      this._value = __v_isShallow ? value : toReactive(value);
+      // 原始数据
+      this._rawValue = value;
+  }
+  Object.defineProperty(RefImpl.prototype, "value", {
+      /**
+       * get 语法将对象属性绑定到查询该属性时将被调用的函数。
+       * 即：xxx.value 时触发该函数
+       */
+      get: function () {
+          // 收集依赖
+          trackRefValue(this);
+          return this._value;
+      },
+      set: function (newVal) {
+          /**
+           * newVal 为新数据
+           * this._rawValue 为旧数据（原始数据）
+           * 对比两个数据是否发生了变化
+           */
+          if (hasChanged(newVal, this._rawValue)) {
+              // 更新原始数据
+              this._rawValue = newVal;
+              // 更新 .value 的值
+              this._value = toReactive(newVal);
+              // 触发依赖
+              triggerRefValue(this);
+          }
+      },
+      enumerable: false,
+      configurable: true
+  });
+  return RefImpl;
+}());
+```
+
+
+
+
+
+### computed
+
+computed 计算属性，通常用于某个函数计算的返回式，同样具有响应式；
+
+1. 执行computed函数，返回一个对象，effect属性是ReactiveEffect实例对象——该实例对象上面已讲
+2. effect中会使用computed的value，触发getter方法，这里进行依赖收集，返回computed方法中的回调函数执行结果，也就是` return '姓名：' + obj.name`该值
+3. 执行定时器，触发副作用函数，等同于直接回调`document.querySelector('#app').innerHTML = computedObj.value
+   }`函数，重新触发一次`computedObj.value`
+4. 这次dirty属性为false，不用执行`effect.run`，也就是重新执行一次`) => {return '姓名：' + obj.name}`，**这就是为什么computed计算属性具有缓存的原理**
+
+```js
+const { reactive, computed, effect } = Vue
+
+const obj = reactive({
+  name: '张三'
+})
+
+const computedObj = computed(() => {
+  return '姓名：' + obj.name
+})
+
+effect(() => {
+  document.querySelector('#app').innerHTML = computedObj.value
+})
+
+setTimeout(() => {
+  obj.name = '李四'
+}, 2000);
+```
+
+
+
+```js
+function computed(getterOrOptions) {
+  var getter;
+  // 判断传入的参数是否为一个函数
+  var onlyGetter = isFunction(getterOrOptions);
+  if (onlyGetter) {
+      // 如果是函数，则赋值给 getter
+      getter = getterOrOptions;
+  }
+  var cRef = new ComputedRefImpl(getter);
+  return cRef;
+}
+
+var ComputedRefImpl = /** @class */ (function () {
+  function ComputedRefImpl(getter) {
+      var _this = this;
+      this.dep = undefined;
+      this.__v_isRef = true;
+      /**
+       * 脏：为 false 时，表示需要触发依赖。为 true 时表示需要重新执行 run 方法，获取数据。即：数据脏了
+       */
+      this._dirty = true;
+      this.effect = new ReactiveEffect(getter, function () {
+          // 判断当前脏的状态，如果为 false，表示需要《触发依赖》
+          if (!_this._dirty) {
+              // 将脏置为 true，表示
+              _this._dirty = true;
+              triggerRefValue(_this);
+          }
+      });
+      this.effect.computed = this;
+  }
+  Object.defineProperty(ComputedRefImpl.prototype, "value", {
+      get: function () {
+          // 收集依赖
+          trackRefValue(this);
+          // 判断当前脏的状态，如果为 true ，则表示需要重新执行 run，获取最新数据
+          if (this._dirty) {
+              this._dirty = false;
+              // 执行 run 函数
+              this._value = this.effect.run();
+          }
+          // 返回计算之后的真实值
+          return this._value;
+      },
+      enumerable: false,
+      configurable: true
+  });
+  return ComputedRefImpl;
+}());
+
+```
+
+
+
+
+
+### watch
+
+watch监听器的内部实现稍微复杂一点，我这里不会涉及过多的边界处理，只考虑最核心的流程——oldValue，newValue
+
+1. 执行watch函数，第一步先判断obj是哪类响应式对象
+2. 如果是reactive，deep为true（相当于预设是对象，需要深度监听），ref则返回value属性值
+3. 紧接着getter复制给baseGetter_1，**getter重新赋值一个函数**，这个函数非常重要，该对象所有的依赖收集都来源这个函数
+4. 后面生成effect和调度器函数，effect属于老生常谈，和前面一样；调度器函数马上就讲
+5. 如果有立即执行就job函数，没有就执行effect.run函数，其实也就是getter，这里进行所有属性的依赖收集
+6. job函数的作用就是生成最新的新老值，然后执行watch中的回调
+7. 修改obj触发监听，最后执行第三段代码，执行调度器函数
+8. 调度器函数可以看第四段代码，其实也很简单，就是使用一个数组先把参数存进来，然后执行一个promise.then微任务执行数组中的每一项，也就是job函数
+
+```js
+
+const obj = reactive({
+  name: '张三',
+  age:19
+})
+
+
+watch(obj, (value, oldValue) => {
+  console.log('watch 监听被触发');
+  console.log("oldValue",oldValue,'value:', value);
+})
+
+setTimeout(() => {
+  obj.name = '李四'
+}, 2000);
+```
+
+```js
+function watch(source, cb, options) {
+  return doWatch(source, cb, options);
+}
+function doWatch(source, cb, _a) {
+  var _b = _a === void 0 ? EMPTY_OBJ : _a, immediate = _b.immediate, deep = _b.deep;
+  // 触发 getter 的指定函数
+  var getter;
+  // 判断 source 的数据类型
+  if (isReactive(source)) {
+      // 指定 getter
+      getter = function () { return source; };
+      // 深度
+      deep = true;
+  }
+  else {
+      getter = function () { };
+  }
+  // 存在回调函数和deep
+  if (cb && deep) {
+      // TODO
+      var baseGetter_1 = getter;
+      getter = function () { return traverse(baseGetter_1()); };
+  }
+  // 旧值
+  var oldValue = {};
+  // job 执行方法
+  var job = function () {
+      if (cb) {
+          // watch(source, cb)
+          var newValue = effect.run();
+          if (deep || hasChanged(newValue, oldValue)) {
+              cb(newValue, oldValue);
+              oldValue = newValue;
+          }
+      }
+  };
+  // 调度器
+  var scheduler = function () { return queuePreFlushCb(job); };
+  var effect = new ReactiveEffect(getter, scheduler);
+  if (cb) {
+      if (immediate) {
+          job();
+      }
+      else {
+          oldValue = effect.run();
+      }
+  }
+  else {
+      effect.run();
+  }
+  return function () {
+      effect.stop();
+  };
+}
+```
+
+```js
+    function triggerEffect(effect) {
+        if (effect.scheduler) {
+            effect.scheduler();
+        }
+        else {
+            effect.run();
+        }
+    }
+```
+
+```js
+   function queuePreFlushCb(cb) {
+        queueCb(cb, pendingPreFlushCbs);
+    }
+    /**
+     * 队列处理函数
+     */
+    function queueCb(cb, pendingQueue) {
+        // 将所有的回调函数，放入队列中
+        pendingQueue.push(cb);
+        queueFlush();
+    }
+    /**
+     * 依次处理队列中执行函数
+     */
+    function queueFlush() {
+        if (!isFlushPending) {
+            isFlushPending = true;
+            resolvedPromise.then(flushJobs);
+        }
+    }
+    /**
+     * 处理队列
+     */
+    function flushJobs() {
+        isFlushPending = false;
+        flushPreFlushCbs();
+    }
+    /**
+     * 依次处理队列中的任务
+     */
+    function flushPreFlushCbs() {
+        if (pendingPreFlushCbs.length) {
+            // 去重
+            var activePreFlushCbs = __spreadArray([], __read(new Set(pendingPreFlushCbs)), false);
+            // 清空就数据
+            pendingPreFlushCbs.length = 0;
+            // 循环处理
+            for (var i = 0; i < activePreFlushCbs.length; i++) {
+                activePreFlushCbs[i]();
+            }
+        }
+    }
+
+```
+
